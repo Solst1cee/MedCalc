@@ -18,8 +18,19 @@ http://127.0.0.1:4173/
 
 - Creatinine Clearance: Cockcroft-Gault with age, sex, weight, and serum creatinine.
 - IV / Inotrope Infusion: two-way dose rate and infusion rate editor with draft drug presets, concentration presets, unit conversion, and warnings.
-- Renal Drug Dose: demo renal dosing bands using saved CrCl.
-- Reference: shows the draft infusion drug data used by the calculator.
+- Renal Dose Adjustment: searchable demo renal dosing bands using known or calculated CrCl.
+- Fractional Excretion: FE calculator for sodium, urea, potassium, magnesium, phosphate, and calcium.
+- Reference: academic source inventory for calculator data and future guideline updates.
+
+## Function Status
+
+| Function | Status | Meaning |
+| --- | --- | --- |
+| Creatinine Clearance | Ready | Core calculator is implemented and ready for routine app testing with clinical verification. |
+| IV / Inotrope Infusion | Ready | Two-way infusion workflow is implemented; drug data still needs local protocol/reference verification. |
+| Fractional Excretion | Ready | Calculator and interpretation notes are implemented. |
+| Renal Dose Adjustment | Down | Not ready for use; renal dosing data and workflow are placeholder-only. |
+| Reference | In progress | Source inventory and maintenance structure are being built. |
 
 Calculators update automatically once the required fields are filled. There is no calculate button in the current workflow.
 

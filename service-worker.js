@@ -1,4 +1,4 @@
-const CACHE_NAME = "medcalc-v47";
+const CACHE_NAME = "medcalc-v53";
 const ASSETS = [
   "./",
   "./index.html",
@@ -9,6 +9,9 @@ const ASSETS = [
   "./icons/icons8-menu.svg",
   "./icons/icons8-github-logo.svg",
   "./icons/icons8-gmail-logo.svg",
+  "./icons/icons8-pickaxe-24.png",
+  "./icons/icons8-check-24.svg",
+  "./icons/icons8-lightning-bolt-24.png",
 ];
 
 self.addEventListener("install", (event) => {

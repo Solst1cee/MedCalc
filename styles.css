@@ -371,6 +371,38 @@ select {
   margin-bottom: 4px;
 }
 
+.tool-title-row {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-start;
+  margin-bottom: 4px;
+}
+
+.tool-title-row .tool-title {
+  margin-bottom: 0;
+}
+
+.tool-status-icon {
+  border-radius: 50%;
+  flex: 0 0 auto;
+  height: 20px;
+  padding: 2px;
+  width: 20px;
+}
+
+.tool-status-icon.testing {
+  background: #fff1b8;
+}
+
+.tool-status-icon.ready {
+  background: #c9f7df;
+}
+
+.tool-status-icon.down {
+  background: #ffd2d2;
+}
+
 .tool-desc {
   color: var(--muted);
   display: block;
@@ -436,6 +468,51 @@ select {
 .calc-header h2 {
   font-size: 22px;
   margin: 0 0 6px;
+}
+
+.calc-title-row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.calc-title-row h2 {
+  margin: 0;
+}
+
+.status-badge {
+  align-items: center;
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 800;
+  gap: 5px;
+  min-height: 28px;
+  padding: 4px 9px;
+  position: relative;
+  top: 1px;
+}
+
+.status-badge img {
+  height: 16px;
+  width: 16px;
+}
+
+.status-badge.testing {
+  background: #fff1b8;
+  color: #755700;
+}
+
+.status-badge.ready {
+  background: #c9f7df;
+  color: #075d33;
+}
+
+.status-badge.down {
+  background: #ffd2d2;
+  color: #9f1d1d;
 }
 
 .calc-header p {

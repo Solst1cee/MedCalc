@@ -1,35 +1,61 @@
 const STORAGE_KEY = "medcalc.session.v1";
 const THEME_KEY = "medcalc.theme.v1";
 
+const toolStatuses = {
+  testing: {
+    label: "In progress",
+    className: "testing",
+    icon: "icons/icons8-pickaxe-24.png",
+    alt: "In progress",
+  },
+  ready: {
+    label: "Ready",
+    className: "ready",
+    icon: "icons/icons8-check-24.svg",
+    alt: "Ready",
+  },
+  down: {
+    label: "Down",
+    className: "down",
+    icon: "icons/icons8-lightning-bolt-24.png",
+    alt: "Down",
+  },
+};
+
 const tools = [
   {
     id: "crcl",
     title: "Creatinine Clearance",
     description: "Cockcroft-Gault CrCl with reusable age, sex, weight, and creatinine.",
+    status: "ready",
     tags: ["renal", "crcl", "creatinine", "cockcroft"],
   },
   {
     id: "infusion",
     title: "IV / Inotrope Infusion",
     description: "Convert mcg/kg/min and mL/hr using weight and concentration.",
+    status: "ready",
     tags: ["icu", "infusion", "inotrope", "vasopressor", "ml/hr"],
   },
   {
     id: "renal-dose",
     title: "Renal Dose Adjustment",
     description: "Search drugs and use known or calculated CrCl for renal dosing bands.",
+    status: "down",
     tags: ["drug", "dose", "renal", "antibiotic"],
   },
   {
     id: "fractional-excretion",
     title: "Fractional Excretion",
     description: "Calculate FE for Na, urea, K, Mg, phosphate, or calcium with interpretation notes.",
+    status: "ready",
     tags: ["fe", "fractional excretion", "fena", "feurea", "aki", "electrolyte"],
   },
   {
     id: "reference",
     title: "Reference",
     description: "Review draft infusion drug concentrations, limits, diluents, and notes.",
+    status: "testing",
     tags: ["reference", "drug", "infusion", "concentration", "maximum"],
   },
 ];
@@ -505,7 +531,10 @@ function renderTools() {
     .map(
       (tool) => `
         <button class="tool-card ${tool.id === state.activeTool ? "active" : ""}" data-tool="${tool.id}" type="button">
-          <span class="tool-title">${tool.title}</span>
+          <span class="tool-title-row">
+            <span class="tool-title">${tool.title}</span>
+            ${statusIcon(tool.status)}
+          </span>
           <span class="tool-desc">${tool.description}</span>
         </button>
       `,
@@ -515,6 +544,11 @@ function renderTools() {
   if (!filtered.length) {
     els.tools.innerHTML = `<div class="empty-state">No calculator matched your search.</div>`;
   }
+}
+
+function statusIcon(statusKey) {
+  const status = toolStatuses[statusKey] || toolStatuses.testing;
+  return `<img class="tool-status-icon ${status.className}" src="${status.icon}" alt="${status.alt}" title="${status.label}" />`;
 }
 
 function renderSessionChip() {
@@ -576,6 +610,7 @@ function renderCalculator() {
 }
 
 function calcShell({ title, description, body, notice }) {
+  const tool = tools.find((item) => item.id === state.activeTool);
   return `
     <article class="calc-card view-slide">
       <button class="back-button" id="backButton" type="button" aria-label="Back to calculator list">
@@ -583,13 +618,26 @@ function calcShell({ title, description, body, notice }) {
         Tools
       </button>
       <div class="calc-header">
-        <h2>${title}</h2>
+        <div class="calc-title-row">
+          <h2>${title}</h2>
+          ${tool ? statusBadge(tool.status) : ""}
+        </div>
         <p>${description}</p>
       </div>
       ${body}
       <div id="resultArea"></div>
       <div class="notice">${notice}</div>
     </article>
+  `;
+}
+
+function statusBadge(statusKey) {
+  const status = toolStatuses[statusKey] || toolStatuses.testing;
+  return `
+    <span class="status-badge ${status.className}">
+      <img src="${status.icon}" alt="" aria-hidden="true" />
+      ${status.label}
+    </span>
   `;
 }
 

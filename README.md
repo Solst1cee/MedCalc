@@ -129,6 +129,7 @@ Each calculator updates automatically as you fill the required fields — there 
 | HAS-BLED | Bleeding risk on anticoagulation for AF (0–9). | In progress |
 | SIRS Criteria | Systemic inflammatory response (0–4). | In progress |
 | 4Ts Score (HIT) | Pretest probability of heparin-induced thrombocytopenia (0–8). | In progress |
+| PREVENT Risk (AHA) | 10- and 30-year cardiovascular risk — total CVD, ASCVD, and heart failure (AHA PREVENT equations). | In progress |
 | Reference | Source inventory for calculator data and future guideline updates. | In progress |
 
 The infusion drug data is intentionally a draft scaffold; verify and replace values with local protocol/reference data before clinical use.

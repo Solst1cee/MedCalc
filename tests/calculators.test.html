@@ -95,8 +95,9 @@
 
           // --- Scores: CURB-65, CHA2DS2-VASc, GCS ---
           assertClose("CURB-65 conf+urea+age", calcScore(SCORES.curb65, { confusion: "y", urea: "y", rr: "n", bp: "n", age65: "y" }), 3, 1e-9);
-          assertClose("CHA2DS2-VASc age65+F+HTN", calcScore(SCORES.chadsvasc, { age: "1", sex: "f", chf: "n", htn: "y", dm: "n", stroke: "n", vasc: "n" }), 3, 1e-9);
-          assertClose("CHA2DS2-VASc age75+stroke", calcScore(SCORES.chadsvasc, { age: "2", sex: "m", chf: "n", htn: "n", dm: "n", stroke: "y", vasc: "n" }), 4, 1e-9);
+          assertClose("CURB-65 all yes = 5 (exercises rr + bp)", calcScore(SCORES.curb65, { confusion: "y", urea: "y", rr: "y", bp: "y", age65: "y" }), 5, 1e-9);
+          assertClose("CHA2DS2-VASc age65+F+HTN", calcScore(SCORES.chadsvasc, { age: "1", sex: "female", chf: "n", htn: "y", dm: "n", stroke: "n", vasc: "n" }), 3, 1e-9);
+          assertClose("CHA2DS2-VASc age75+stroke", calcScore(SCORES.chadsvasc, { age: "2", sex: "male", chf: "n", htn: "n", dm: "n", stroke: "y", vasc: "n" }), 4, 1e-9);
           assertClose("GCS E2V4M5 = 11", calcScore(SCORES.gcs, { eye: "2", verbal: "4", motor: "5" }), 11, 1e-9);
           assertClose("GCS best = 15", calcScore(SCORES.gcs, { eye: "4", verbal: "5", motor: "6" }), 15, 1e-9);
 
@@ -104,12 +105,20 @@
           // RR22(2)+SpO2 93(2)+suppO2 y(2)+temp38.5(1)+SBP100(2)+HR48(1)+Alert(0) = 10
           assertClose("NEWS2 worked example = 10", calcScore(SCORES.news2, { rr: 22, spo2: 93, suppO2: "y", temp: 38.5, sbp: 100, hr: 48, consciousness: "a" }), 10, 1e-9);
           assertClose("NEWS2 all-normal = 0", calcScore(SCORES.news2, { rr: 16, spo2: 98, suppO2: "n", temp: 37, sbp: 120, hr: 70, consciousness: "a" }), 0, 1e-9);
+          // Exercise the top bands of every numericBand + the ACVPU=3 option: 3+3+0+3+3+3+3 = 18.
+          assertClose("NEWS2 high = 18", calcScore(SCORES.news2, { rr: 26, spo2: 90, suppO2: "n", temp: 35, sbp: 88, hr: 135, consciousness: "x" }), 18, 1e-9);
           assertClose("CIWA-Ar 4+3+2 = 9", calcScore(SCORES.ciwa, { nausea: "4", tremor: "3", sweats: "0", anxiety: "0", agitation: "0", tactile: "0", auditory: "0", visual: "0", headache: "0", orientation: "2" }), 9, 1e-9);
 
           // --- Child-Pugh + Wells (PE) ---
           assertClose("Child-Pugh B example = 7", calcScore(SCORES.childpugh, { bilirubin: "2", albumin: "1", inr: "1", ascites: "2", enceph: "1" }), 7, 1e-9);
           assertClose("Wells-PE DVT+PE+HR = 7.5", calcScore(SCORES.wellspe, { dvt: "y", peLikely: "y", hr: "y", immob: "n", priorVte: "n", hemoptysis: "n", malignancy: "n" }), 7.5, 1e-9);
           assertClose("Wells-PE HR+prior+hemoptysis = 4", calcScore(SCORES.wellspe, { dvt: "n", peLikely: "n", hr: "y", immob: "n", priorVte: "y", hemoptysis: "y", malignancy: "n" }), 4, 1e-9);
+          assertClose("Wells-PE immob+malignancy = 2.5 (exercises both)", calcScore(SCORES.wellspe, { dvt: "n", peLikely: "n", hr: "n", immob: "y", priorVte: "n", hemoptysis: "n", malignancy: "y" }), 2.5, 1e-9);
+          // Child-Pugh interpretation bands (tightened so an impossible <5 score is not labelled Class A).
+          assertEqual("Child-Pugh interp 6 = Class A", scoreInterpretation(SCORES.childpugh, 6).indexOf("Class A") >= 0, true);
+          assertEqual("Child-Pugh interp 9 = Class B", scoreInterpretation(SCORES.childpugh, 9).indexOf("Class B") >= 0, true);
+          assertEqual("Child-Pugh interp 12 = Class C", scoreInterpretation(SCORES.childpugh, 12).indexOf("Class C") >= 0, true);
+          assertEqual("Child-Pugh interp <5 = no class", scoreInterpretation(SCORES.childpugh, 4), "");
           // --- Adrogué–Madias: ΔNa per 1 L = (infusateNa - serumNa)/(TBW+1) ; TBW = wt*frac ---
           assertClose("Adrogue 70M Na120 3%saline", calcAdrogue({ weightKg: 70, sex: "male", sodium: 120, infusateNa: 513 }), 9.14, 0.01);
           assertClose("Adrogue 60F Na122 NS", calcAdrogue({ weightKg: 60, sex: "female", sodium: 122, infusateNa: 154 }), 1.032, 0.01);

@@ -199,6 +199,7 @@ const tools = [
   { id: "hasbled", title: "HAS-BLED", description: "Bleeding risk on anticoagulation for AF (0-9).", status: "testing", tags: ["has-bled", "hasbled", "bleeding", "anticoagulation", "af", "atrial fibrillation", "cardiology"] },
   { id: "sirs", title: "SIRS Criteria", description: "Systemic inflammatory response (0-4).", status: "testing", tags: ["sirs", "systemic inflammatory response", "sepsis", "screening", "infection"] },
   { id: "fourts", title: "4Ts Score (HIT)", description: "Pretest probability of heparin-induced thrombocytopenia (0-8).", status: "testing", tags: ["4ts", "hit", "heparin induced thrombocytopenia", "heparin", "thrombocytopenia", "hematology"] },
+  { id: "prevent", title: "PREVENT Risk (AHA)", description: "10- & 30-year cardiovascular risk (CVD, ASCVD, heart failure).", status: "testing", tags: ["prevent", "cardiovascular risk", "ascvd", "cvd", "heart failure", "primary prevention", "aha", "cardiology", "statin", "cholesterol"] },
   {
     id: "reference",
     title: "Reference",
@@ -1871,6 +1872,167 @@ function renderHba1cEag() {
   });
 }
 
+// ===== AHA PREVENT (2023) base cardiovascular risk equations =====
+// Khan SS et al., Circulation 2024;149:430-449. Sex-specific logistic equations:
+//   risk = exp(LP) / (1 + exp(LP)),  LP = Σ coef·term  (the `k` term, value 1, is the intercept).
+// Coefficients transcribed from the published supplement, cross-checked against the
+// `preventr` R package + two other implementations, and validated against the AHA
+// worked example. A term absent from an equation contributes 0: lipid terms are
+// omitted from the heart-failure equations; BMI terms are omitted from CVD/ASCVD.
+const PREVENT_COEF = {
+  female: {
+    totalCvd: {
+      ten: { age: 0.7939329, nonHdl: 0.0305239, hdl: -0.1606857, sbpLo: -0.2394003, sbpHi: 0.3600781, dm: 0.8667604, smk: 0.5360739, egfrLo: 0.6045917, egfrHi: 0.0433769, bpTx: 0.3151672, statin: -0.1477655, bpTxSbp: -0.0663612, statinNonHdl: 0.1197879, ageNonHdl: -0.0819715, ageHdl: 0.0306769, ageSbp: -0.0946348, ageDm: -0.27057, ageSmk: -0.078715, ageEgfr: -0.1637806, k: -3.307728 },
+      thirty: { age: 0.5503079, ageSq: -0.0928369, nonHdl: 0.0409794, hdl: -0.1663306, sbpLo: -0.1628654, sbpHi: 0.3299505, dm: 0.6793894, smk: 0.3196112, egfrLo: 0.1857101, egfrHi: 0.0553528, bpTx: 0.2894, statin: -0.075688, bpTxSbp: -0.056367, statinNonHdl: 0.1071019, ageNonHdl: -0.0751438, ageHdl: 0.0301786, ageSbp: -0.0998776, ageDm: -0.3206166, ageSmk: -0.1607862, ageEgfr: -0.1450788, k: -1.318827 },
+    },
+    ascvd: {
+      ten: { age: 0.719883, nonHdl: 0.1176967, hdl: -0.151185, sbpLo: -0.0835358, sbpHi: 0.3592852, dm: 0.8348585, smk: 0.4831078, egfrLo: 0.4864619, egfrHi: 0.0397779, bpTx: 0.2265309, statin: -0.0592374, bpTxSbp: -0.0395762, statinNonHdl: 0.0844423, ageNonHdl: -0.0567839, ageHdl: 0.0325692, ageSbp: -0.1035985, ageDm: -0.2417542, ageSmk: -0.0791142, ageEgfr: -0.1671492, k: -3.819975 },
+      thirty: { age: 0.4669202, ageSq: -0.0893118, nonHdl: 0.1256901, hdl: -0.1542255, sbpLo: -0.0018093, sbpHi: 0.322949, dm: 0.6296707, smk: 0.268292, egfrLo: 0.100106, egfrHi: 0.0499663, bpTx: 0.1875292, statin: 0.0152476, bpTxSbp: -0.0276123, statinNonHdl: 0.0736147, ageNonHdl: -0.0521962, ageHdl: 0.0316918, ageSbp: -0.1046101, ageDm: -0.2727793, ageSmk: -0.1530907, ageEgfr: -0.1299149, k: -1.974074 },
+    },
+    hf: {
+      ten: { age: 0.8998235, sbpLo: -0.4559771, sbpHi: 0.3576505, dm: 1.038346, smk: 0.583916, bmiLo: -0.0072294, bmiHi: 0.2997706, egfrLo: 0.7451638, egfrHi: 0.0557087, bpTx: 0.3534442, bpTxSbp: -0.0981511, ageSbp: -0.0946663, ageDm: -0.3581041, ageSmk: -0.1159453, ageBmi: -0.003878, ageEgfr: -0.1884289, k: -4.310409 },
+      thirty: { age: 0.6254374, ageSq: -0.0983038, sbpLo: -0.3919241, sbpHi: 0.3142295, dm: 0.8330787, smk: 0.3438651, bmiLo: 0.0594874, bmiHi: 0.2525536, egfrLo: 0.2981642, egfrHi: 0.0667159, bpTx: 0.333921, bpTxSbp: -0.0893177, ageSbp: -0.0974299, ageDm: -0.404855, ageSmk: -0.1982991, ageBmi: -0.0035619, ageEgfr: -0.1564215, k: -2.205379 },
+    },
+  },
+  male: {
+    totalCvd: {
+      ten: { age: 0.7688528, nonHdl: 0.0736174, hdl: -0.0954431, sbpLo: -0.4347345, sbpHi: 0.3362658, dm: 0.7692857, smk: 0.4386871, egfrLo: 0.5378979, egfrHi: 0.0164827, bpTx: 0.288879, statin: -0.1337349, bpTxSbp: -0.0475924, statinNonHdl: 0.150273, ageNonHdl: -0.0517874, ageHdl: 0.0191169, ageSbp: -0.1049477, ageDm: -0.2251948, ageSmk: -0.0895067, ageEgfr: -0.1543702, k: -3.031168 },
+      thirty: { age: 0.4627309, ageSq: -0.0984281, nonHdl: 0.0836088, hdl: -0.1029824, sbpLo: -0.2140352, sbpHi: 0.2904325, dm: 0.5331276, smk: 0.2141914, egfrLo: 0.1155556, egfrHi: 0.0603775, bpTx: 0.232714, statin: -0.0272112, bpTxSbp: -0.0384488, statinNonHdl: 0.134192, ageNonHdl: -0.0511759, ageHdl: 0.0165865, ageSbp: -0.1101437, ageDm: -0.2585943, ageSmk: -0.1566406, ageEgfr: -0.1166776, k: -1.148204 },
+    },
+    ascvd: {
+      ten: { age: 0.7099847, nonHdl: 0.1658663, hdl: -0.1144285, sbpLo: -0.2837212, sbpHi: 0.3239977, dm: 0.7189597, smk: 0.3956973, egfrLo: 0.3690075, egfrHi: 0.0203619, bpTx: 0.2036522, statin: -0.0865581, bpTxSbp: -0.0322916, statinNonHdl: 0.114563, ageNonHdl: -0.0300005, ageHdl: 0.0232747, ageSbp: -0.0927024, ageDm: -0.2018525, ageSmk: -0.0970527, ageEgfr: -0.1217081, k: -3.500655 },
+      thirty: { age: 0.3994099, ageSq: -0.0937484, nonHdl: 0.1744643, hdl: -0.120203, sbpLo: -0.0665117, sbpHi: 0.2753037, dm: 0.4790257, smk: 0.1782635, egfrLo: -0.0218789, egfrHi: 0.0602553, bpTx: 0.1421182, statin: 0.0135996, bpTxSbp: -0.0218265, statinNonHdl: 0.1013148, ageNonHdl: -0.0312619, ageHdl: 0.020673, ageSbp: -0.0920935, ageDm: -0.2159947, ageSmk: -0.1548811, ageEgfr: -0.0712547, k: -1.736444 },
+    },
+    hf: {
+      ten: { age: 0.8972642, sbpLo: -0.6811466, sbpHi: 0.3634461, dm: 0.923776, smk: 0.5023736, bmiLo: -0.0485841, bmiHi: 0.3726929, egfrLo: 0.6926917, egfrHi: 0.0251827, bpTx: 0.2980922, bpTxSbp: -0.0497731, ageSbp: -0.1289201, ageDm: -0.3040924, ageSmk: -0.1401688, ageBmi: 0.0068126, ageEgfr: -0.1797778, k: -3.946391 },
+      thirty: { age: 0.5681541, ageSq: -0.1048388, sbpLo: -0.4761564, sbpHi: 0.30324, dm: 0.6840338, smk: 0.2656273, bmiLo: 0.0833107, bmiHi: 0.26999, egfrLo: 0.2541805, egfrHi: 0.0638923, bpTx: 0.2583631, bpTxSbp: -0.0391938, ageSbp: -0.1269124, ageDm: -0.3273572, ageSmk: -0.2043019, ageBmi: -0.0182831, ageEgfr: -0.1342618, k: -1.95751 },
+    },
+  },
+};
+
+// Transform raw inputs into the centered/spline model terms (cholesterol in mg/dL).
+function preventTerms({ age, totalCholMgDl, hdlMgDl, sbp, bpMed, statin, diabetes, smoker, bmi, egfr }) {
+  const a = (age - 55) / 10;
+  const nonHdl = 0.02586 * (totalCholMgDl - hdlMgDl) - 3.5;
+  const hdl = (0.02586 * hdlMgDl - 1.3) / 0.3;
+  const sbpHi = (Math.max(sbp, 110) - 130) / 20;
+  const bmiHi = (Math.max(bmi, 30) - 30) / 5;
+  const egfrLo = (Math.min(egfr, 60) - 60) / -15;
+  const dm = diabetes ? 1 : 0;
+  const smk = smoker ? 1 : 0;
+  const tx = bpMed ? 1 : 0;
+  const st = statin ? 1 : 0;
+  return {
+    age: a, ageSq: a * a,
+    nonHdl, hdl,
+    sbpLo: (Math.min(sbp, 110) - 110) / 20, sbpHi,
+    dm, smk,
+    bmiLo: (Math.min(bmi, 30) - 25) / 5, bmiHi,
+    egfrLo, egfrHi: (Math.max(egfr, 60) - 90) / -15,
+    bpTx: tx, statin: st,
+    bpTxSbp: tx * sbpHi, statinNonHdl: st * nonHdl,
+    ageNonHdl: a * nonHdl, ageHdl: a * hdl, ageSbp: a * sbpHi,
+    ageDm: a * dm, ageSmk: a * smk, ageBmi: a * bmiHi, ageEgfr: a * egfrLo,
+    k: 1,
+  };
+}
+
+// Dot the equation's coefficients with the term vector, then logistic. Returns 0-1.
+function preventRisk(coef, terms) {
+  let lp = 0;
+  for (const key in coef) lp += coef[key] * terms[key];
+  return 1 / (1 + Math.exp(-lp));
+}
+
+// Returns 10- and 30-year risks as PERCENTAGES for total CVD, ASCVD, and heart failure.
+// (30-year risk is computed for all ages; the renderer only displays it for ages 30-59.)
+function calcPrevent(input) {
+  const terms = preventTerms(input);
+  const c = PREVENT_COEF[input.sex === "female" ? "female" : "male"];
+  const pct = (coef) => preventRisk(coef, terms) * 100;
+  return {
+    ten: { totalCvd: pct(c.totalCvd.ten), ascvd: pct(c.ascvd.ten), hf: pct(c.hf.ten) },
+    thirty: { totalCvd: pct(c.totalCvd.thirty), ascvd: pct(c.ascvd.thirty), hf: pct(c.hf.thirty) },
+  };
+}
+
+function renderPrevent() {
+  const s = state.session;
+  const yn = [{ value: "n", label: "No" }, { value: "y", label: "Yes" }];
+  els.calculator.innerHTML = calcShell({
+    title: "PREVENT Risk (AHA)",
+    description: "AHA PREVENT 10- and 30-year cardiovascular risk (total CVD, ASCVD, heart failure) for adults 30–79 without known CVD.",
+    body: `
+      <form id="preventForm">
+        <div class="form-grid">
+          ${inputField({ name: "age", label: "Age (years)", value: s.age ?? "", hint: "30–79" })}
+          ${inputField({ name: "sex", label: "Sex", value: s.sex ?? "male", options: [{ value: "male", label: "Male" }, { value: "female", label: "Female" }] })}
+          ${inputField({ name: "cholUnit", label: "Cholesterol units", value: s.cholUnit ?? "mgDl", options: [{ value: "mgDl", label: "mg/dL" }, { value: "mmolL", label: "mmol/L" }] })}
+          ${inputField({ name: "totalChol", label: "Total cholesterol", value: s.totalChol ?? "", hint: "" })}
+          ${inputField({ name: "hdl", label: "HDL cholesterol", value: s.hdl ?? "", hint: "" })}
+          ${inputField({ name: "sbp", label: "Systolic BP (mmHg)", value: s.sbp ?? "", hint: "90–180" })}
+          ${inputField({ name: "bpMed", label: "On BP-lowering treatment", value: s.bpMed ?? "n", options: yn })}
+          ${inputField({ name: "statin", label: "On statin", value: s.onStatin ?? "n", options: yn })}
+          ${inputField({ name: "diabetes", label: "Diabetes", value: s.diabetes ?? "n", options: yn })}
+          ${inputField({ name: "smoker", label: "Current smoker", value: s.smoker ?? "n", options: yn })}
+          ${inputField({ name: "bmi", label: "BMI (kg/m²)", value: s.bmi ?? "", hint: "18.5–39.9" })}
+          ${inputField({ name: "egfr", label: "eGFR (mL/min/1.73m²)", value: s.egfr ?? "", hint: "CKD-EPI 2021 — see Renal Function" })}
+        </div>
+      </form>
+    `,
+    notice: "Clinical check: PREVENT estimates risk in adults 30–79 without known CVD; it is not interchangeable with the older Pooled Cohort Equations, and treatment thresholds are still being defined. Enter eGFR from the CKD-EPI 2021 equation.",
+  });
+  document.querySelector("#backButton").addEventListener("click", () => history.back());
+  const form = document.querySelector("#preventForm");
+  bindLiveForm(form, () => {
+    const age = numberValue(form, "age");
+    const sex = form.elements.sex.value;
+    const cholUnit = form.elements.cholUnit.value;
+    const total = numberValue(form, "totalChol");
+    const hdl = numberValue(form, "hdl");
+    const sbp = numberValue(form, "sbp");
+    const bmi = numberValue(form, "bmi");
+    const egfr = numberValue(form, "egfr");
+    if (![age, total, hdl, sbp, bmi, egfr].every(positive)) { showPending("Enter age, cholesterol, blood pressure, BMI, and eGFR."); return; }
+    if (age < 30 || age > 79) { showPending("PREVENT is validated for ages 30–79."); return; }
+    const toMgDl = (v) => (cholUnit === "mmolL" ? v * 38.67 : v);
+    const totalMgDl = toMgDl(total);
+    const hdlMgDl = toMgDl(hdl);
+    if (sbp < 90 || sbp > 180) { showPending("Systolic BP should be 90–180 mmHg."); return; }
+    if (totalMgDl < 130 || totalMgDl > 320) { showPending("Total cholesterol is outside the validated range (130–320 mg/dL / 3.4–8.3 mmol/L)."); return; }
+    if (hdlMgDl < 20 || hdlMgDl > 100) { showPending("HDL is outside the validated range (20–100 mg/dL / 0.5–2.6 mmol/L)."); return; }
+    if (bmi < 18.5 || bmi > 39.9) { showPending("BMI should be 18.5–39.9 kg/m²."); return; }
+    if (egfr < 15 || egfr > 140) { showPending("eGFR should be 15–140 mL/min/1.73m²."); return; }
+    const bpMed = form.elements.bpMed.value;
+    const onStatin = form.elements.statin.value;
+    const diabetes = form.elements.diabetes.value;
+    const smoker = form.elements.smoker.value;
+    saveSession({ age, sex, cholUnit, totalChol: total, hdl, sbp, bpMed, onStatin, diabetes, smoker, bmi, egfr });
+    const r = calcPrevent({
+      age, sex, totalCholMgDl: totalMgDl, hdlMgDl, sbp,
+      bpMed: bpMed === "y", statin: onStatin === "y", diabetes: diabetes === "y", smoker: smoker === "y", bmi, egfr,
+    });
+    const pc = (v) => `${round(v, 1)}%`;
+    const a = r.ten.ascvd;
+    const ascvdBand = a < 5 ? "low (&lt;5%)" : a < 7.5 ? "borderline (5–7.5%)" : a < 20 ? "intermediate (7.5–20%)" : "high (≥20%)";
+    const thirtyDetail = age <= 59
+      ? `ASCVD ${pc(r.thirty.ascvd)} · Heart failure ${pc(r.thirty.hf)}`
+      : "Reported only for ages 30–59.";
+    document.querySelector("#resultArea").innerHTML = `
+      <div class="result-box">
+        <div class="result-label">10-year total CVD</div>
+        <div class="result-value">${pc(r.ten.totalCvd)}</div>
+        <p class="result-detail">ASCVD ${pc(r.ten.ascvd)} (${ascvdBand}) · Heart failure ${pc(r.ten.hf)}</p>
+      </div>
+      <div class="result-box">
+        <div class="result-label">30-year total CVD</div>
+        <div class="result-value">${age <= 59 ? pc(r.thirty.totalCvd) : "—"}</div>
+        <p class="result-detail">${thirtyDetail}</p>
+      </div>
+    `;
+  });
+}
+
 function renderCalculator() {
   if (!state.activeTool) {
     els.calculator.innerHTML = "";
@@ -1896,6 +2058,7 @@ function renderCalculator() {
   if (state.activeTool === "fib4") renderFib4();
   if (state.activeTool === "maddrey") renderMaddrey();
   if (state.activeTool === "hba1c-eag") renderHba1cEag();
+  if (state.activeTool === "prevent") renderPrevent();
   if (SCORES[state.activeTool]) return renderScore(SCORES[state.activeTool]);
   if (state.activeTool === "qtc") renderQtc();
   if (state.activeTool === "body-weight") renderBodyWeight();

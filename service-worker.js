@@ -1,4 +1,4 @@
-const CACHE_NAME = "nightcalc-v73";
+const CACHE_NAME = "nightcalc-v74";
 const ASSETS = [
   "./",
   "./index.html",

@@ -192,6 +192,22 @@
           assertEqual("4Ts all max = 8", calcScore(SCORES.fourts, { thrombocytopenia: "2", timing: "2", thrombosis: "2", otherCause: "2" }), 8);
           assertEqual("4Ts otherCause reverse: none apparent adds 2", calcScore(SCORES.fourts, { thrombocytopenia: "0", timing: "0", thrombosis: "0", otherCause: "2" }), 2);
           assertEqual("4Ts low combo = 3", calcScore(SCORES.fourts, { thrombocytopenia: "1", timing: "1", thrombosis: "0", otherCause: "1" }), 3);
+
+          // ===== AHA PREVENT (validation vectors; cholesterol mg/dL) =====
+          // V1 is the AHA-published worked example (gold anchor). exp = [10y CVD, ASCVD, HF, 30y CVD, ASCVD, HF] %.
+          function assertPrevent(name, inp, exp) {
+            const r = calcPrevent(inp);
+            assertClose(name + " 10y CVD", r.ten.totalCvd, exp[0], 0.15);
+            assertClose(name + " 10y ASCVD", r.ten.ascvd, exp[1], 0.15);
+            assertClose(name + " 10y HF", r.ten.hf, exp[2], 0.15);
+            assertClose(name + " 30y CVD", r.thirty.totalCvd, exp[3], 0.2);
+            assertClose(name + " 30y ASCVD", r.thirty.ascvd, exp[4], 0.2);
+            assertClose(name + " 30y HF", r.thirty.hf, exp[5], 0.2);
+          }
+          assertPrevent("PREVENT V1 (AHA gold, F50)", { age: 50, sex: "female", totalCholMgDl: 200, hdlMgDl: 45, sbp: 160, bpMed: true, statin: false, diabetes: true, smoker: false, bmi: 35, egfr: 90 }, [14.68, 9.2, 8.06, 52.99, 35.43, 38.96]);
+          assertPrevent("PREVENT V2 (M66)", { age: 66, sex: "male", totalCholMgDl: 188, hdlMgDl: 52, sbp: 148, bpMed: false, statin: true, diabetes: true, smoker: true, bmi: 30, egfr: 67 }, [22.4, 14.2, 13.8, 43.5, 28.7, 31.7]);
+          assertPrevent("PREVENT V3 (F40 low-risk)", { age: 40, sex: "female", totalCholMgDl: 170, hdlMgDl: 60, sbp: 115, bpMed: false, statin: false, diabetes: false, smoker: false, bmi: 24, egfr: 100 }, [0.6, 0.4, 0.2, 4.6, 2.7, 2.3]);
+          assertPrevent("PREVENT V4 (M45 smoker)", { age: 45, sex: "male", totalCholMgDl: 220, hdlMgDl: 40, sbp: 135, bpMed: false, statin: false, diabetes: false, smoker: true, bmi: 28, egfr: 95 }, [5.1, 3.7, 1.6, 27.0, 18.8, 11.7]);
         } catch (err) {
           bad("suite", err && err.message ? err.message : String(err));
         }

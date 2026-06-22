@@ -850,13 +850,7 @@ function renderScore(config) {
 }
 
 function showScoreInfo(config, total) {
-  document.querySelector("#resultArea").innerHTML = `
-    <div class="result-box">
-      <div class="result-label">${config.title}</div>
-      <div class="result-value">${total}${config.maxLabel ? ` / ${config.maxLabel}` : ""}</div>
-      <p class="result-detail">${scoreInterpretation(config, total)}</p>
-    </div>
-  `;
+  showResult(config.title, `${total}${config.maxLabel ? ` / ${config.maxLabel}` : ""}`, scoreInterpretation(config, total));
 }
 
 SCORES.qsofa = {
@@ -911,8 +905,8 @@ SCORES.chadsvasc = {
         { label: "≥ 75", value: "2", points: 2 },
       ] },
     { name: "sex", label: "Sex", type: "select", options: [
-        { label: "Male", value: "m", points: 0 },
-        { label: "Female", value: "f", points: 1 },
+        { label: "Male", value: "male", points: 0 },
+        { label: "Female", value: "female", points: 1 },
       ] },
     { name: "chf", label: "Congestive heart failure / LV dysfunction", type: "select", options: YN(1) },
     { name: "htn", label: "Hypertension", type: "select", options: YN(1) },
@@ -1048,9 +1042,9 @@ SCORES.childpugh = {
       ] },
   ],
   interpret: [
-    { test: (t) => t <= 6, text: "5-6: Class A — well-compensated." },
-    { test: (t) => t <= 9, text: "7-9: Class B — significant functional compromise." },
     { test: (t) => t >= 10, text: "10-15: Class C — decompensated." },
+    { test: (t) => t >= 7, text: "7-9: Class B — significant functional compromise." },
+    { test: (t) => t >= 5, text: "5-6: Class A — well-compensated." },
   ],
   notice: "Clinical check: bilirubin/albumin thresholds assume conventional units; MELD-Na is often preferred for prognosis and transplant listing.",
 };
@@ -2059,10 +2053,12 @@ function renderCalculator() {
   if (state.activeTool === "maddrey") renderMaddrey();
   if (state.activeTool === "hba1c-eag") renderHba1cEag();
   if (state.activeTool === "prevent") renderPrevent();
-  if (SCORES[state.activeTool]) return renderScore(SCORES[state.activeTool]);
   if (state.activeTool === "qtc") renderQtc();
   if (state.activeTool === "body-weight") renderBodyWeight();
   if (state.activeTool === "reference") renderReference();
+  // Generic score dispatch runs LAST so explicit-id branches above always win and
+  // never become dead code if a SCORES key ever collides with one of their ids.
+  if (SCORES[state.activeTool]) return renderScore(SCORES[state.activeTool]);
 }
 
 function calcShell({ title, description, body, notice }) {
